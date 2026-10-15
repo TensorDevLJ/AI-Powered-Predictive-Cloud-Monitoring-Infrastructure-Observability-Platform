@@ -1,50 +1,34 @@
 """
 Metrics routes
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
 from app.database import get_db
-from app import models, schemas, auth
+from app import models, auth
+from app.dependencies import get_instance_or_404, get_prometheus_target
 from app.services.prometheus import prometheus_client
 from app.services.alerting import alert_service
 
 router = APIRouter(prefix="/metrics", tags=["Metrics"])
 
 
-
-@router.get("/cpu/{instance_id}") 
+@router.get("/cpu/{instance_id}")
 async def get_cpu_metrics(
-    instance_id: str,
+    instance: models.Instance = Depends(get_instance_or_404),
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """Get CPU metrics for an instance"""
-    # Try by ID first if numeric, then by instance_id string
-    if instance_id.isdigit():
-        instance = db.query(models.Instance).filter(models.Instance.id == int(instance_id)).first()
-    else:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-    
-    if not instance:
-        # One last try: if it was numeric, it might still be a string instance_id
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-    
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    
-    # Build prometheus instance target
-    target = f"{instance.ip_address}:{instance.port}"
-    
-    # Get CPU metrics
+    target = get_prometheus_target(instance)
+
     cpu_usage = prometheus_client.get_cpu_usage(target)
     cpu_per_core = prometheus_client.get_cpu_per_core(target)
     load_avg = prometheus_client.get_load_average(target)
-    
-    # Check threshold and create alert if needed
+
     alert_service.check_cpu_threshold(db, instance, cpu_usage)
-    
+
     return {
         "instance_id": instance.instance_id,
         "instance_name": instance.name,
@@ -59,28 +43,16 @@ async def get_cpu_metrics(
 
 @router.get("/memory/{instance_id}")
 async def get_memory_metrics(
-    instance_id: str,
+    instance: models.Instance = Depends(get_instance_or_404),
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """Get memory metrics for an instance"""
-    if instance_id.isdigit():
-        instance = db.query(models.Instance).filter(models.Instance.id == int(instance_id)).first()
-    else:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    
-    target = f"{instance.ip_address}:{instance.port}"
+    target = get_prometheus_target(instance)
     memory_metrics = prometheus_client.get_memory_usage(target)
-    
-    # Check threshold
+
     alert_service.check_memory_threshold(db, instance, memory_metrics.get("usage_percent", 0))
-    
+
     return {
         "instance_id": instance.instance_id,
         "instance_name": instance.name,
@@ -91,29 +63,17 @@ async def get_memory_metrics(
 
 @router.get("/disk/{instance_id}")
 async def get_disk_metrics(
-    instance_id: str,
     mount_point: str = Query(default="/", description="Disk mount point"),
+    instance: models.Instance = Depends(get_instance_or_404),
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """Get disk metrics for an instance"""
-    if instance_id.isdigit():
-        instance = db.query(models.Instance).filter(models.Instance.id == int(instance_id)).first()
-    else:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    
-    target = f"{instance.ip_address}:{instance.port}"
+    target = get_prometheus_target(instance)
     disk_metrics = prometheus_client.get_disk_usage(target, mount_point)
-    
-    # Check threshold
+
     alert_service.check_disk_threshold(db, instance, disk_metrics.get("usage_percent", 0))
-    
+
     return {
         "instance_id": instance.instance_id,
         "instance_name": instance.name,
@@ -124,25 +84,13 @@ async def get_disk_metrics(
 
 @router.get("/network/{instance_id}")
 async def get_network_metrics(
-    instance_id: str,
+    instance: models.Instance = Depends(get_instance_or_404),
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
-    db: Session = Depends(get_db)
 ):
     """Get network metrics for an instance"""
-    if instance_id.isdigit():
-        instance = db.query(models.Instance).filter(models.Instance.id == int(instance_id)).first()
-    else:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    
-    target = f"{instance.ip_address}:{instance.port}"
+    target = get_prometheus_target(instance)
     network_metrics = prometheus_client.get_network_usage(target)
-    
+
     return {
         "instance_id": instance.instance_id,
         "instance_name": instance.name,
@@ -153,26 +101,14 @@ async def get_network_metrics(
 
 @router.get("/load/{instance_id}")
 async def get_load_metrics(
-    instance_id: str,
+    instance: models.Instance = Depends(get_instance_or_404),
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
-    db: Session = Depends(get_db)
 ):
     """Get load average for an instance"""
-    if instance_id.isdigit():
-        instance = db.query(models.Instance).filter(models.Instance.id == int(instance_id)).first()
-    else:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    
-    target = f"{instance.ip_address}:{instance.port}"
+    target = get_prometheus_target(instance)
     load_avg = prometheus_client.get_load_average(target)
     uptime = prometheus_client.get_uptime(target)
-    
+
     return {
         "instance_id": instance.instance_id,
         "instance_name": instance.name,
@@ -184,24 +120,13 @@ async def get_load_metrics(
 
 @router.get("/all/{instance_id}")
 async def get_all_metrics(
-    instance_id: str,
+    instance: models.Instance = Depends(get_instance_or_404),
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     """Get all metrics for an instance"""
-    if instance_id.isdigit():
-        instance = db.query(models.Instance).filter(models.Instance.id == int(instance_id)).first()
-    else:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        instance = db.query(models.Instance).filter(models.Instance.instance_id == instance_id).first()
-        
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    
-    target = f"{instance.ip_address}:{instance.port}"
-    
+    target = get_prometheus_target(instance)
+
     # Collect all metrics
     cpu_usage = prometheus_client.get_cpu_usage(target)
     cpu_per_core = prometheus_client.get_cpu_per_core(target)
@@ -210,14 +135,13 @@ async def get_all_metrics(
     disk_metrics = prometheus_client.get_disk_usage(target)
     network_metrics = prometheus_client.get_network_usage(target)
     uptime = prometheus_client.get_uptime(target)
-    
+
     # Check thresholds
-     # Check thresholds
     alert_service.check_cpu_threshold(db, instance, cpu_usage)
     alert_service.check_memory_threshold(db, instance, memory_metrics.get("usage_percent", 0))
     alert_service.check_disk_threshold(db, instance, disk_metrics.get("usage_percent", 0))
 
-    # ----------- ADD THIS BLOCK (IMPORTANT) -----------
+    # Persist a snapshot for ML training / historical analysis
     snapshot = models.MetricsSnapshot(
         instance_id=instance.id,
         timestamp=datetime.utcnow(),
@@ -233,7 +157,6 @@ async def get_all_metrics(
 
     db.add(snapshot)
     db.commit()
-    # ----------- END BLOCK -----------
 
     return {
         "instance_id": instance.instance_id,
@@ -251,7 +174,6 @@ async def get_all_metrics(
     }
 
 
-
 @router.get("/dashboard/summary")
 async def get_dashboard_summary(
     current_user: Optional[models.User] = Depends(auth.get_optional_current_user),
@@ -259,36 +181,36 @@ async def get_dashboard_summary(
 ):
     """Get dashboard summary with aggregated metrics"""
     instances = db.query(models.Instance).filter(models.Instance.is_monitored == True).all()
-    
+
     total_instances = len(instances)
     active_instances = sum(1 for i in instances if i.status == "active")
-    
+
     # Get alerts
     active_alerts = alert_service.get_active_alerts(db)
     total_alerts = len(active_alerts)
     critical_alerts = sum(1 for a in active_alerts if a.severity == "critical")
-    
+
     # Calculate average metrics
     cpu_values = []
     memory_values = []
     disk_values = []
-    
+
     for instance in instances:
         if instance.status == "active":
-            target = f"{instance.ip_address}:{instance.port}"
+            target = get_prometheus_target(instance)
             try:
                 cpu_values.append(prometheus_client.get_cpu_usage(target))
                 memory_metrics = prometheus_client.get_memory_usage(target)
                 memory_values.append(memory_metrics.get("usage_percent", 0))
                 disk_metrics = prometheus_client.get_disk_usage(target)
                 disk_values.append(disk_metrics.get("usage_percent", 0))
-            except:
+            except Exception:
                 pass
-    
+
     avg_cpu = sum(cpu_values) / len(cpu_values) if cpu_values else 0
     avg_memory = sum(memory_values) / len(memory_values) if memory_values else 0
     avg_disk = sum(disk_values) / len(disk_values) if disk_values else 0
-    
+
     return {
         "total_instances": total_instances,
         "active_instances": active_instances,

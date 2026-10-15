@@ -3,6 +3,7 @@ Main FastAPI application
 Cloud Monitoring System - COMPLETE with ML Features
 """
 
+from contextlib import asynccontextmanager
 from app.services.prometheus import prometheus_client
 from app.services.scheduler import start_scheduler
 from fastapi import FastAPI
@@ -20,8 +21,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown hooks (replaces the deprecated @app.on_event API)."""
+    logger.info("Starting Cloud Monitoring System - ML Enhanced v2.0.0")
+    init_db()
+    start_scheduler()
+    logger.info("Database initialized successfully")
+
+    yield
+
+    logger.info("Shutting down Cloud Monitoring System")
+
+
 # Create FastAPI app
 app = FastAPI(
+    lifespan=lifespan,
     title="Cloud Monitoring System - ML Enhanced",
     version="2.0.0",
     description=(
@@ -52,21 +68,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    logger.info("Starting Cloud Monitoring System - ML Enhanced v2.0.0")
-    init_db()
-    start_scheduler()
-    logger.info("Database initialized successfully")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("Shutting down Cloud Monitoring System")
 
 
 # Exception handlers
@@ -135,8 +136,8 @@ async def root():
             ],
             "ml_enhanced": [
                 "Anomaly detection (Isolation Forest + One-Class SVM)",
-                "CPU usage prediction (Prophet forecasting)",
-                "Memory usage forecasting",
+                "CPU usage prediction (RandomForest forecasting)",
+                "Memory usage forecasting (RandomForest + trend-based leak detection)",
                 "Memory leak detection",
                 "Instance health scoring (0-100)",
                 "System failure prediction",

@@ -27,9 +27,13 @@ def collect_metrics_job():
 
         for instance in instances:
 
-            metrics = prometheus_client.get_all_metrics(
-                instance.ip_address,
-            )
+            # Must match the "ip:port" target format used everywhere else
+            # (metrics.py, ml_routes.py) - passing just the IP meant this
+            # scheduled collector queried a different Prometheus target
+            # label than the rest of the app, so it never matched real data.
+            target = f"{instance.ip_address}:{instance.port}"
+
+            metrics = prometheus_client.get_all_metrics(target)
 
             snapshot = models.MetricsSnapshot(
                 instance_id=instance.id,

@@ -7,14 +7,14 @@ from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
 # Create database engine
-# engine = create_engine(
-#     settings.DATABASE_URL,
-#     connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
-#     pool_pre_ping=True,
-#     pool_recycle=3600,
-# )
 DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    # SQLite requires this to allow use across FastAPI's threaded requests
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

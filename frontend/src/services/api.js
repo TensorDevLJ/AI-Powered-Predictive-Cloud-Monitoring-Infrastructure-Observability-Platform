@@ -1,6 +1,11 @@
 import axios from "axios";
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+// Reads VITE_API_URL from the environment (see frontend/.env.example).
+// Falls back to localhost only for zero-config local development - a
+// production/Docker build must set VITE_API_URL at build time, otherwise
+// the browser will try to call 127.0.0.1:8000 regardless of where the
+// real backend is deployed.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -293,12 +293,12 @@ const features = [
 
 const mlFeatures = [
     { title: 'Anomaly Detection', description: 'Uses Isolation Forest and One-Class SVM to detect unusual system behavior.' },
-    { title: 'CPU Prediction', description: 'Prophet-based forecasting for CPU usage over the next 30+ minutes.' },
-    { title: 'Memory Forecasting', description: 'Predicts memory trends and detects potential memory leaks.' },
-    { title: 'Health Scoring', description: 'Assigns a 0–100 health score based on CPU, memory, disk, network, and stability.' },
-    { title: 'Failure Prediction', description: 'Predicts potential system failures before they occur based on metric patterns.' },
-    { title: 'Root Cause Analysis', description: 'Identifies the primary causes of performance degradation.' },
-    { title: 'Capacity Planning', description: '14–30 day resource forecasts to plan scaling decisions ahead of time.' },
+    { title: 'CPU Prediction', description: 'RandomForest regression (lag + rolling-window features) forecasts CPU usage over the next 30+ minutes.' },
+    { title: 'Memory Forecasting', description: 'RandomForest regression predicts memory trends; leak detection uses linear trend-slope analysis.' },
+    { title: 'Health Scoring', description: 'Trained classifier predicts the probability of a near-term alert based on real historical alert outcomes, not a fixed formula.' },
+    { title: 'Failure Prediction', description: 'Trained classifier predicts the probability of a critical alert in the near future, learned from real alert history.' },
+    { title: 'Root Cause Analysis', description: 'A trained classifier (bootstrapped from rule-based diagnostics) identifies the primary causes of performance degradation.' },
+    { title: 'Capacity Planning', description: '14–30 day resource forecasts using a trained day-level model, with trend-based fallback for new instances.' },
     { title: 'Auto-scaling Recommendations', description: 'Suggests when to scale up or down based on predicted resource needs.' },
 ];
 

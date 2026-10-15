@@ -1,8 +1,13 @@
 """
 Configuration settings for the Cloud Monitoring System
 """
+import logging
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_SECRET_KEY = "your-secret-key-change-this-in-production"
 
 
 class Settings(BaseSettings):
@@ -14,15 +19,16 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # Security
-    SECRET_KEY: str = "your-secret-key-change-this-in-production"
+    SECRET_KEY: str = DEFAULT_SECRET_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     # Database
-    # DATABASE_URL: str = "sqlite:///./monitoring.db"
-    DATABASE_URL: str = "mysql+pymysql://root:Likhitha%40123@localhost:3306/cloud_monitor"
-
-    # For PostgreSQL: postgresql://user:password@localhost/dbname
+    # Defaults to a local SQLite file so the app runs out-of-the-box with
+    # zero external setup. Override via .env for MySQL/Postgres, e.g.:
+    #   mysql+pymysql://user:password@localhost:3306/cloud_monitor
+    #   postgresql://user:password@localhost:5432/dbname
+    DATABASE_URL: str = "sqlite:///./monitoring.db"
     
     # Prometheus
     PROMETHEUS_URL: str = "http://prometheus:9090"
@@ -60,3 +66,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.SECRET_KEY == DEFAULT_SECRET_KEY:
+    logger.warning(
+        "SECURITY WARNING: SECRET_KEY is using the default placeholder value. "
+        "Set a unique SECRET_KEY in your .env file before deploying to production "
+        "(anyone can forge JWT tokens otherwise). "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
